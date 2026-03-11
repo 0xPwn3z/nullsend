@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ~/.securerelay:/data
+    environment:
+      - SECURERELAY_VAULT_PASSWORD=${VAULT_PASSWORD}
+      - SECURERELAY_API_KEY=${API_KEY}
+      - SECURERELAY_PROVIDER__NAME=${PROVIDER_NAME:-groq}
+      - SECURERELAY_PROVIDER__MODEL=${PROVIDER_MODEL:-llama-3.1-8b-instant}
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

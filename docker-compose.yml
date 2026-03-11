@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - securerelay-data:/data
+    environment:
+      - SECURERELAY_VAULT_PASSWORD=${VAULT_PASSWORD}
+      - SECURERELAY_API_KEY=${API_KEY}
+      - SECURERELAY_PROVIDER__NAME=${PROVIDER_NAME:-groq}
+      - SECURERELAY_PROVIDER__MODEL=${PROVIDER_MODEL:-llama-3.1-8b-instant}
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      - VITE_API_URL=http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  securerelay-data:

@@ -1,0 +1,158 @@
+# ── SecureRelay NER Pipeline Configuration ───────────────────────
+# All tunable parameters for the hybrid Regex + GLiNER engine.
+# Restart required to apply changes (no hot-reload).
+
+gliner:
+  model_id: "urchade/gliner_multi_pii-v1"
+  model_cache_dir: "/app/models"
+  use_onnx: false
+  threshold: 0.4
+  batch_size: 8
+  max_length: 512
+  labels:
+    - label: "person name"
+      entity_type: "PERSON"
+    - label: "organization name"
+      entity_type: "ORG_NAME"
+    - label: "internal hostname"
+      entity_type: "HOSTNAME"
+    - label: "domain name"
+      entity_type: "HOSTNAME"
+    - label: "email address"
+      entity_type: "CREDENTIAL"
+
+regex:
+  global_threshold: 0.75
+  context_window: 60
+  patterns:
+
+    # ── IPv4 ──────────────────────────────────────────────────────
+    - entity_type: "IP_ADDRESS"
+      score: 0.95
+      patterns:
+        - '\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b'
+      context_boost:
+        words: ["host", "ip", "target", "server", "address",
+                "gateway", "dns", "src", "dst", "source",
+                "destination", "indirizzo", "bersaglio"]
+        boost: 0.0
+      deny_list:
+        - "0.0.0.0"
+        - "255.255.255.255"
+        - "127.0.0.1"
+      validate: "ipv4"
+
+    # ── CIDR (IPv4) ──────────────────────────────────────────────
+    - entity_type: "NETWORK_RANGE"
+      score: 0.92
+      patterns:
+        - '\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)/(?:[12]?\d|3[012])\b'
+      context_boost:
+        words: ["subnet", "cidr", "range", "network", "rete",
+                "sottorete", "segmento"]
+        boost: 0.03
+
+    # ── Credentials (key=value, user:pass) ───────────────────────
+    - entity_type: "CREDENTIAL"
+      score: 0.85
+      patterns:
+        - '(?i)(?:password|passwd|pwd|secret|token|api[_\-]?key|apikey|auth|bearer|pass)\s*[=:]\s*\S+'
+        - '(?i)(?:user(?:name)?|login|utente)\s*[=:]\s*\S+'
+        - '\b([a-zA-Z0-9_\-\.]{2,32}):([^\s:]{4,64})\b'
+      context_boost:
+        words: ["credential", "login", "auth", "password",
+                "secret", "key", "token", "accesso", "credenziali"]
+        boost: 0.05
+      deny_list_regex:
+        - '^https?://'
+        - '^\d+:\d+$'
+
+    # ── Port ─────────────────────────────────────────────────────
+    - entity_type: "PORT"
+      score: 0.80
+      patterns:
+        - '(?i)\bport(?:a)?\s+(\d{1,5})\b'
+        - '(?i)\bporta\s+(\d{1,5})\b'
+        - ':(\d{1,5})(?:/(?:tcp|udp))?\b'
+      context_boost:
+        words: ["port", "porta", "open", "aperta", "listen",
+                "service", "servizio", "tcp", "udp", "nmap"]
+        boost: 0.05
+      validate: "port"
+
+    # ── File paths ───────────────────────────────────────────────
+    - entity_type: "FILE_PATH"
+      score: 0.78
+      patterns:
+        - '(?<![a-zA-Z])(/(?:etc|var|home|usr|opt|tmp|root|proc|dev|srv|mnt|media|run|sys|boot|lib|bin|sbin|snap)(?:/[^\s''"<>|;,\[\]{}()\\]{1,80})*)'
+        - '(?<![a-zA-Z])(/[a-zA-Z0-9_\-\.]+(?:/[a-zA-Z0-9_\-\.]+){2,})'
+        - '\b([A-Za-z]:\\(?:[^\\\/:*?"<>|\r\n]{1,80}\\)*[^\\\/:*?"<>|\r\n]{0,80})'
+      context_boost:
+        words: ["file", "path", "config", "log", "directory",
+                "backup", "upload", "download", "percorso",
+                "cartella", "conf", "etc"]
+        boost: 0.07
+
+    # ── CIDR (IPv6) ──────────────────────────────────────────────
+    - entity_type: "NETWORK_RANGE"
+      score: 0.88
+      patterns:
+        - '\b(?:[0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}/\d+\b'
+        - '\b::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}/\d+\b'
+
+    # ── IPv6 ─────────────────────────────────────────────────────
+    - entity_type: "IP_ADDRESS"
+      score: 0.88
+      patterns:
+        - '\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b'
+        - '\b(?:[0-9a-fA-F]{1,4}:){1,7}:\b'
+        - '\b::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}\b'
+
+    # ── Internal codes / tickets ─────────────────────────────────
+    - entity_type: "INTERNAL_CODE"
+      score: 0.92
+      patterns:
+        - '\bCVE-\d{4}-\d{4,7}\b'
+        - '\b(?:JIRA|PROJ|TICKET|REQ|INC|CHG|TASK|BUG|VULN)-\d+\b'
+        - '\b[A-Z]{2,8}-\d{3,8}\b'
+      context_boost:
+        words: ["cve", "vulnerability", "ticket", "issue",
+                "bug", "jira", "vulnerabilità", "tracciato"]
+        boost: 0.03
+
+    # ── Hashes ───────────────────────────────────────────────────
+    - entity_type: "HASH"
+      score: 0.82
+      patterns:
+        - '\b[0-9a-fA-F]{32}\b'
+        - '\b[0-9a-fA-F]{40}\b'
+        - '\b[0-9a-fA-F]{64}\b'
+      context_boost:
+        words: ["hash", "md5", "sha1", "sha256", "checksum",
+                "digest", "password", "ntlm"]
+        boost: 0.08
+
+    # ── JWT / Bearer tokens ──────────────────────────────────────
+    - entity_type: "CREDENTIAL"
+      score: 0.90
+      patterns:
+        - '\beyJ[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{10,}\b'
+        - '\bBearer\s+[a-zA-Z0-9\._\-]{20,}\b'
+
+    # ── SSH / PGP key fragments ──────────────────────────────────
+    - entity_type: "CREDENTIAL"
+      score: 0.88
+      patterns:
+        - '-----BEGIN\s+(?:RSA\s+)?(?:PRIVATE|PUBLIC)\s+KEY-----'
+        - '-----BEGIN\s+OPENSSH\s+PRIVATE\s+KEY-----'
+
+merge:
+  overlap_strategy: "highest_confidence"
+  min_span_length: 2
+  regex_priority_types:
+    - "IP_ADDRESS"
+    - "NETWORK_RANGE"
+    - "PORT"
+    - "CREDENTIAL"
+    - "INTERNAL_CODE"
+    - "HASH"
