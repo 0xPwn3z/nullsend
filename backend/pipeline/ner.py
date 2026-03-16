@@ -1,5 +1,5 @@
 """
-SecureRelay NER Pipeline — Hybrid Regex + GLiNER engine.
+Nullsend NER Pipeline — Hybrid Regex + GLiNER engine.
 
 Architecture:
   1. RegexEngine  — deterministic, structured entities

@@ -9,11 +9,11 @@ from typing import AsyncIterator
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
-from pipeline.anonymizer import build_safe_text, restore_text
+from pipeline.anonymizer import _RESIDUAL_TOKEN_PATTERN, build_safe_text, restore_text
 from pipeline.ner import RecognizedEntity
-from providers.base import PENTEST_SYSTEM_PROMPT
+from providers.base import resolve_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,17 @@ class SendRequest(BaseModel):
     session_id: str
     original_text: str
     approved_entities: list[ApprovedEntity]
+    # FIX: configurable system prompt — preset resolution
+    system_prompt: str | None = None
+
+    @field_validator("system_prompt", mode="before")
+    @classmethod
+    def normalize_system_prompt(cls, value: str | None) -> str | None:
+        """Normalize optional system prompt input from clients."""
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
 
 def _sse_event(event: str, data: dict | str) -> str:
@@ -72,16 +83,35 @@ async def _stream_response(request: Request, body: SendRequest) -> AsyncIterator
     output_tokens = 0
 
     try:
-        async for chunk in provider.stream(safe_text, system=PENTEST_SYSTEM_PROMPT):
+        # FIX: configurable system prompt — preset resolution
+        system = resolve_system_prompt(body.system_prompt)
+        async for chunk in provider.stream(safe_text, system=system):
             full_response += chunk
             yield _sse_event("token", {"chunk": chunk})
 
+        # FIX: safety — no silent fallback on restore failure
         # De-anonymize the full response
         try:
             restored = restore_text(full_response, vault, body.session_id)
         except Exception as exc:
-            logger.exception("restore_text failed, falling back to raw response")
-            restored = full_response
+            logger.exception("restore_text failed, aborting done event for safety")
+            yield _sse_event("error", {
+                "message": "Unable to safely restore anonymized response; response withheld.",
+                "safety": True,
+            })
+            return
+
+        unresolved_tokens = _RESIDUAL_TOKEN_PATTERN.findall(restored)
+        if unresolved_tokens:
+            logger.warning(
+                "restore_text completed with unresolved tokens: session=%s count=%s",
+                body.session_id,
+                len(unresolved_tokens),
+            )
+            yield _sse_event("warning", {
+                "message": "Response contains unresolved anonymization tokens; verify vault/session mappings.",
+                "unresolved_tokens": unresolved_tokens,
+            })
 
         # Estimate token counts from the full (non-streaming) response
         # For accurate counts, we'd need the provider to report them;

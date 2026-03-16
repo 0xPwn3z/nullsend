@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import sqlcipher3  # type: ignore[import-untyped]
+
+
+logger = logging.getLogger(__name__)
 
 
 class Vault:
@@ -17,8 +21,10 @@ class Vault:
     encrypted using SQLCipher with the provided password.
     """
 
-    def __init__(self, db_path: Path, password: str) -> None:
+    # FIX: session expiry — TTL enforcement + startup cleanup
+    def __init__(self, db_path: Path, password: str, session_ttl_hours: int = 24) -> None:
         self._db_path = db_path
+        self._session_ttl_hours = session_ttl_hours
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
         self._conn = sqlcipher3.connect(str(db_path))
@@ -83,10 +89,24 @@ class Vault:
     def resolve(self, token_id: str, session_id: str) -> str | None:
         """Resolve a token back to its original value, or None if expired/missing."""
         row = self._conn.execute(
-            "SELECT original FROM tokens WHERE token_id = ? AND session_id = ? AND expired = 0",
+            "SELECT original, created_at FROM tokens WHERE token_id = ? AND session_id = ? AND expired = 0",
             (token_id, session_id),
         ).fetchone()
-        return row[0] if row else None
+        if not row:
+            return None
+
+        created_at_raw = row[1]
+        created_at = datetime.fromisoformat(created_at_raw)
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        else:
+            created_at = created_at.astimezone(timezone.utc)
+
+        if datetime.now(timezone.utc) - created_at > timedelta(hours=self._session_ttl_hours):
+            self.expire_session(session_id)
+            return None
+
+        return row[0]
 
     def get_session_tokens(self, session_id: str) -> list[dict[str, Any]]:
         """Return all active tokens for a session."""
@@ -111,6 +131,26 @@ class Vault:
             (session_id,),
         )
         self._conn.commit()
+        return cur.rowcount
+
+    def cleanup_expired_sessions(self, ttl_hours: int | None = None) -> int:
+        """Expire stale tokens older than the configured TTL. Returns number of rows updated."""
+        effective_ttl = ttl_hours if ttl_hours is not None else self._session_ttl_hours
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=effective_ttl)
+
+        cur = self._conn.execute(
+            "UPDATE tokens SET expired = 1 WHERE created_at < ? AND expired = 0",
+            (cutoff.isoformat(),),
+        )
+        self._conn.commit()
+
+        if cur.rowcount > 0:
+            logger.info(
+                "Startup cleanup: expired %d stale tokens (TTL=%dh)",
+                cur.rowcount,
+                effective_ttl,
+            )
+
         return cur.rowcount
 
     def close(self) -> None:

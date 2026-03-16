@@ -21,6 +21,37 @@ including brackets.
 Provide specific, actionable technical guidance based on the structure
 of the request."""
 
+# FIX: configurable system prompt — preset resolution
+AVAILABLE_SYSTEM_PROMPTS: dict[str, str] = {
+    "pentest": PENTEST_SYSTEM_PROMPT,
+    "report": """\
+You are an expert penetration testing report writer.
+Produce concise, professional, structured findings and recommendations.
+Do not invent vulnerabilities or evidence; only use details present in the prompt.
+If information is missing, state assumptions and required validation steps explicitly.""",
+    "recon": """\
+You are an expert reconnaissance and OSINT analyst for security assessments.
+Enumerate discovered signals, correlate related indicators, and prioritize likely attack paths.
+Suggest clear next investigative steps and validation checks.
+Do not speculate beyond the provided data; flag uncertainty explicitly.""",
+    "default": PENTEST_SYSTEM_PROMPT,
+}
+
+
+def resolve_system_prompt(override: str | None) -> str:
+    """Resolve a system prompt from a named preset or a raw override string."""
+    if override is None:
+        return PENTEST_SYSTEM_PROMPT
+
+    preset = AVAILABLE_SYSTEM_PROMPTS.get(override)
+    if preset is not None:
+        return preset
+
+    if len(override) > 2000:
+        raise ValueError("system_prompt override exceeds 2000 characters")
+
+    return override
+
 
 class LLMResponse(BaseModel):
     """Structured response from an LLM provider."""

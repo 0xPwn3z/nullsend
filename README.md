@@ -1,10 +1,10 @@
-# SecureRelay Web
+# Nullsend Web
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 
-SecureRelay is a local privacy gateway for LLM-assisted security workflows. It detects sensitive entities, enforces a human review checkpoint, anonymizes approved data, sends only sanitized prompts to the LLM, and restores readable responses locally.
+Nullsend is a local privacy gateway for LLM-assisted security workflows. It detects sensitive entities, enforces a human review checkpoint, anonymizes approved data, sends only sanitized prompts to the LLM, and restores readable responses locally.
 
 ## Core Workflow
 
@@ -64,7 +64,7 @@ Required variables in .env:
 - PROVIDER_NAME: groq | openrouter | anthropic | ollama
 - PROVIDER_MODEL: provider model name
 
-Compose maps these into backend settings (SECURERELAY_* variables).
+Compose maps these into backend settings (NULLSEND_* variables).
 
 ## Quick Start (Docker)
 
@@ -100,7 +100,7 @@ Default exposed ports:
 
 Persistent data in production compose:
 
-- Host path ~/.securerelay mounted to /data
+- Host path ~/.nullsend mounted to /data
 
 ## Local Development
 

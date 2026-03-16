@@ -4,12 +4,12 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - securerelay-data:/data
+      - nullsend-data:/data
     environment:
-      - SECURERELAY_VAULT_PASSWORD=${VAULT_PASSWORD}
-      - SECURERELAY_API_KEY=${API_KEY}
-      - SECURERELAY_PROVIDER__NAME=${PROVIDER_NAME:-groq}
-      - SECURERELAY_PROVIDER__MODEL=${PROVIDER_MODEL:-llama-3.1-8b-instant}
+      - NULLSEND_VAULT_PASSWORD=${VAULT_PASSWORD}
+      - NULLSEND_API_KEY=${API_KEY}
+      - NULLSEND_PROVIDER__NAME=${PROVIDER_NAME:-groq}
+      - NULLSEND_PROVIDER__MODEL=${PROVIDER_MODEL:-llama-3.1-8b-instant}
     restart: unless-stopped
 
   frontend:
@@ -26,4 +26,4 @@ services:
       - backend
 
 volumes:
-  securerelay-data:
+  nullsend-data:

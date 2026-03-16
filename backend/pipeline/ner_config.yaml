@@ -1,4 +1,4 @@
-# ── SecureRelay NER Pipeline Configuration ───────────────────────
+# ── Nullsend NER Pipeline Configuration ───────────────────────
 # All tunable parameters for the hybrid Regex + GLiNER engine.
 # Restart required to apply changes (no hot-reload).
 

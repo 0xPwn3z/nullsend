@@ -73,11 +73,13 @@ def build_safe_text(
     return safe, mappings
 
 
+# FIX: safety — no silent fallback on restore failure
 # Regex to find token placeholders: [TYPE_XXXXXXXX]
 # TYPE is an uppercase prefix (new format: no underscores, e.g. IPADDR, ORGNAM)
 # followed by _ and 8 hex chars.
 # Also matches legacy prefixes that may contain underscores (e.g. IP_A, ORG_).
-_TOKEN_PATTERN = re.compile(r"\[([A-Z][A-Z_]{0,9}_[0-9a-f]{8})\]")
+_RESIDUAL_TOKEN_PATTERN = re.compile(r"\[([A-Z][A-Z_]{0,9}_[0-9a-f]{8})\]")
+_TOKEN_PATTERN = _RESIDUAL_TOKEN_PATTERN
 
 
 def restore_text(

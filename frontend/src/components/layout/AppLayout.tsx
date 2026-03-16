@@ -5,7 +5,7 @@ import { ConversationFeed } from "@/components/conversation/ConversationFeed";
 import { PromptInput } from "@/components/input/PromptInput";
 import { HITLSidebar } from "@/components/hitl/HITLSidebar";
 
-const STORAGE_KEY = "securerelay:sidebar-width";
+const STORAGE_KEY = "nullsend:sidebar-width";
 const MIN_SIDEBAR = 280;
 const MAX_SIDEBAR = 600;
 const MIN_CONVERSATION = 400;

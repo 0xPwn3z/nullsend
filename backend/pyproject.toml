@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 include = ["pipeline*", "providers*", "routers*"]
 
 [project]
-name = "securerelay-backend"
+name = "nullsend-backend"
 version = "0.1.0"
-description = "SecureRelay backend — privacy layer for LLM-assisted pentesting"
+description = "Nullsend backend — privacy layer for LLM-assisted pentesting"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",

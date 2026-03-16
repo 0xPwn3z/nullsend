@@ -1,4 +1,4 @@
-"""SecureRelay backend – FastAPI application entry point."""
+"""Nullsend backend – FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
@@ -16,11 +16,17 @@ from providers import build_provider
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan: initialize shared resources on startup, clean up on shutdown."""
+    # FIX: session expiry — TTL enforcement + startup cleanup
     settings = Settings()
 
     ner = PentestNER()
     ner.load()
-    vault = Vault(db_path=settings.vault_db_path, password=settings.vault_password)
+    vault = Vault(
+        db_path=settings.vault_db_path,
+        password=settings.vault_password,
+        session_ttl_hours=settings.session_ttl_hours,
+    )
+    vault.cleanup_expired_sessions()
     audit = AuditLog(log_path=settings.audit_log_path)
     provider = build_provider(settings)
 
@@ -36,7 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="SecureRelay",
+    title="Nullsend",
     description="Privacy layer for LLM-assisted penetration testing",
     version="0.1.0",
     lifespan=lifespan,

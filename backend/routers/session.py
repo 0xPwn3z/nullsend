@@ -6,7 +6,9 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from providers.base import resolve_system_prompt
 
 router = APIRouter(tags=["session"])
 
@@ -14,6 +16,17 @@ router = APIRouter(tags=["session"])
 class NewSessionRequest(BaseModel):
     """Request body for creating a new session."""
     name: str
+    # FIX: configurable system prompt — preset resolution
+    system_prompt: str | None = None
+
+    @field_validator("system_prompt", mode="before")
+    @classmethod
+    def normalize_system_prompt(cls, value: str | None) -> str | None:
+        """Normalize optional system prompt input from clients."""
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
 
 class NewSessionResponse(BaseModel):
@@ -22,6 +35,8 @@ class NewSessionResponse(BaseModel):
     created_at: str
     provider: str
     model: str
+    # FIX: configurable system prompt — preset resolution
+    system_prompt: str | None
 
 
 class DeleteSessionResponse(BaseModel):
@@ -36,11 +51,15 @@ async def create_session(body: NewSessionRequest, request: Request) -> NewSessio
     session_id = uuid.uuid4().hex[:16]
     created_at = datetime.now(timezone.utc).isoformat()
 
+    # FIX: configurable system prompt — preset resolution
+    resolve_system_prompt(body.system_prompt)
+
     return NewSessionResponse(
         session_id=session_id,
         created_at=created_at,
         provider=settings.provider.name,
         model=settings.provider.model,
+        system_prompt=body.system_prompt,
     )
 
 

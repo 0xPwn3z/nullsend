@@ -10,7 +10,7 @@ export function Header() {
     <header className="flex h-12 items-center justify-between border-b border-border bg-surface px-4">
       <div className="flex items-center gap-2">
         <Shield className="h-5 w-5 text-accent-cyan" />
-        <span className="font-semibold text-text-primary">SecureRelay</span>
+        <span className="font-semibold text-text-primary">Nullsend</span>
         {name && (
           <span className="ml-2 text-sm text-text-muted">[{name}]</span>
         )}
